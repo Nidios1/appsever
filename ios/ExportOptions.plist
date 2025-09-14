@@ -3,9 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>method</key>
-	<string>app-store</string>
-	<key>teamID</key>
-	<string>YOUR_TEAM_ID</string>
+	<string>development</string>
 	<key>uploadBitcode</key>
 	<false/>
 	<key>uploadSymbols</key>
@@ -16,5 +14,14 @@
 	<true/>
 	<key>thinning</key>
 	<string>&lt;none&gt;</string>
+	<key>signingStyle</key>
+	<string>manual</string>
+	<key>signingCertificate</key>
+	<string></string>
+	<key>provisioningProfiles</key>
+	<dict>
+		<key>com.example.ppapikey_flutter_rebuild</key>
+		<string></string>
+	</dict>
 </dict>
 </plist>
