@@ -42,8 +42,8 @@ jobs:
         
     - name: Build iOS app (Debug)
       run: |
-        flutter build ios --debug --no-codesign
+        flutter build ios --debug --simulator
         
     - name: Build iOS app (Release)
       run: |
-        flutter build ios --release --no-codesign
+        flutter build ios --release --simulator

@@ -33,4 +33,4 @@ jobs:
         
     - name: Test Flutter build
       run: |
-        flutter build ios --debug --no-codesign
+        flutter build ios --debug --simulator
