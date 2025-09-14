@@ -2,9 +2,9 @@ name: Build iOS IPA
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -24,12 +24,11 @@ jobs:
     - name: Install dependencies
       run: flutter pub get
       
-    - name: Verify Flutter installation
-      run: flutter doctor
+    - name: Run tests
+      run: flutter test
       
     - name: Build iOS app
       run: |
-        cd ios
         flutter build ios --release --no-codesign
         
     - name: Setup Xcode
@@ -37,74 +36,34 @@ jobs:
       with:
         xcode-version: latest-stable
         
-    - name: Install Apple Certificate
-      env:
-        BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
-        P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
-        KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-      run: |
-        # Create variables
-        CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
-        KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
-
-        # Import certificate from secrets
-        echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode --output $CERTIFICATE_PATH
-
-        # Create temporary keychain
-        security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-        security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
-        security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-
-        # Import certificate to keychain
-        security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
-        security list-keychain -d user -s $KEYCHAIN_PATH
-
-        # Apply access rights
-        security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-
-    - name: Install Provisioning Profile
-      env:
-        PROVISIONING_PROFILE_BASE64: ${{ secrets.PROVISIONING_PROFILE_BASE64 }}
-      run: |
-        PROVISIONING_PROFILE_PATH=$RUNNER_TEMP/build_pp.mobileprovision
-        echo -n "$PROVISIONING_PROFILE_BASE64" | base64 --decode --output $PROVISIONING_PROFILE_PATH
-        mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-        cp $PROVISIONING_PROFILE_PATH ~/Library/MobileDevice/Provisioning\ Profiles
-
     - name: Build IPA
-      env:
-        EXPORT_METHOD: ${{ secrets.EXPORT_METHOD }}
-        BUILD_CONFIGURATION: Release
       run: |
         cd ios
         xcodebuild -workspace Runner.xcworkspace \
                    -scheme Runner \
-                   -sdk iphoneos \
                    -configuration Release \
-                   -archivePath $PWD/build/Runner.xcarchive \
+                   -destination generic/platform=iOS \
+                   -archivePath Runner.xcarchive \
                    archive
                    
         xcodebuild -exportArchive \
-                   -archivePath $PWD/build/Runner.xcarchive \
-                   -exportOptionsPlist $PWD/ExportOptions.plist \
-                   -exportPath $PWD/build
-
-    - name: Upload IPA
-      uses: actions/upload-artifact@v4
+                   -archivePath Runner.xcarchive \
+                   -exportPath . \
+                   -exportOptionsPlist ExportOptions.plist
+                   
+    - name: Upload IPA artifact
+      uses: actions/upload-artifact@v3
       with:
         name: ppapikey-app-ipa
-        path: ios/build/*.ipa
+        path: ios/*.ipa
         retention-days: 30
-
-    - name: Upload to App Store Connect (Optional)
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      env:
-        APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
-        APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-        APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-      run: |
-        # Install App Store Connect API tools
-        gem install fastlane
         
-        # Upload to App Store Connect
-        fastlane deliver --ipa ios/build/*.ipa --skip_binary_upload true
+    - name: Upload build logs
+      uses: actions/upload-artifact@v3
+      if: failure()
+      with:
+        name: build-logs
+        path: |
+          ios/build/
+          flutter_build.log
+        retention-days: 7
