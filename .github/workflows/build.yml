@@ -1,46 +1,34 @@
-name: Build IPA (Requires Apple Developer Account)
+name: Build IPA for eSign
 
 on:
   workflow_dispatch:
 
 jobs:
-  build-ipa:
+  build:
     runs-on: macos-latest
     
     steps:
-    - name: Checkout repository
+    - name: Checkout
       uses: actions/checkout@v4
       
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
         flutter-version: '3.16.0'
-        channel: 'stable'
         
     - name: Install dependencies
       run: flutter pub get
       
-    - name: Generate Flutter files
+    - name: Build iOS
       run: |
-        flutter packages get
-        flutter precache --ios
-        
-    - name: Setup CocoaPods
-      run: |
-        sudo gem install cocoapods
-        pod setup
-        
-    - name: Install iOS dependencies
-      run: |
-        cd ios
-        pod install --repo-update
+        flutter build ios --release --no-codesign
         
     - name: Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
         xcode-version: latest-stable
         
-    - name: Build IPA
+    - name: Create IPA
       run: |
         cd ios
         xcodebuild -workspace Runner.xcworkspace \
@@ -48,16 +36,19 @@ jobs:
                    -configuration Release \
                    -destination generic/platform=iOS \
                    -archivePath Runner.xcarchive \
+                   CODE_SIGN_IDENTITY="" \
+                   CODE_SIGNING_REQUIRED=NO \
                    archive
                    
         xcodebuild -exportArchive \
                    -archivePath Runner.xcarchive \
                    -exportPath . \
-                   -exportOptionsPlist ExportOptions.plist
+                   -exportOptionsPlist ExportOptions.plist \
+                   CODE_SIGN_IDENTITY="" \
+                   CODE_SIGNING_REQUIRED=NO
                    
-    - name: Upload IPA artifact
+    - name: Upload IPA
       uses: actions/upload-artifact@v3
       with:
-        name: ppapikey-app-ipa
+        name: ppapikey-ipa
         path: ios/*.ipa
-        retention-days: 30
