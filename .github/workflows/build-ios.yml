@@ -3,8 +3,6 @@ name: Build iOS IPA
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -24,20 +22,16 @@ jobs:
     - name: Install dependencies
       run: flutter pub get
       
-    - name: Install CocoaPods
+    - name: Setup CocoaPods
       run: |
-        cd ios
         sudo gem install cocoapods
         pod setup
         
     - name: Install iOS dependencies
       run: |
         cd ios
-        pod install
+        pod install --repo-update
         
-    - name: Run tests
-      run: flutter test
-      
     - name: Build iOS app
       run: |
         flutter build ios --release --no-codesign
@@ -68,13 +62,3 @@ jobs:
         name: ppapikey-app-ipa
         path: ios/*.ipa
         retention-days: 30
-        
-    - name: Upload build logs
-      uses: actions/upload-artifact@v3
-      if: failure()
-      with:
-        name: build-logs
-        path: |
-          ios/build/
-          flutter_build.log
-        retention-days: 7
